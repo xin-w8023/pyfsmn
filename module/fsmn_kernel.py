@@ -34,26 +34,21 @@ class FSMNKernel(nn.Module):
 
         kernel_out = []
         for frame in range(self.l_order * self.l_stride, frames + self.l_order * self.l_stride):
-            cur_frame = torch.sum(
-                x[:, frame - self.l_order * self.l_stride:frame:self.l_stride] * self.filter[:self.l_order] +
-                x[:, frame:frame + 1] * self.filter[self.l_order:self.l_order + 1] +
-                x[:, frame + 1:frame + 1 + self.r_order * self.r_stride:self.r_stride] * self.filter[self.l_order + 1:],
-                dim=1,
-                keepdim=True
-            )
+            if self.r_order > 0:
+                cur_frame = torch.sum(
+                    x[:, frame - self.l_order * self.l_stride:frame:self.l_stride] * self.filter[:self.l_order] +
+                    x[:, frame:frame + 1] * self.filter[self.l_order:self.l_order + 1] +
+                    x[:, frame + 1:frame + 1 + self.r_order * self.r_stride:self.r_stride] * self.filter[self.l_order + 1:],
+                    dim=1,
+                    keepdim=True
+                )
+            else:
+                cur_frame = torch.sum(
+                    x[:, frame - self.l_order * self.l_stride:frame:self.l_stride] * self.filter[:self.l_order] +
+                    x[:, frame:frame + 1] * self.filter[self.l_order:self.l_order + 1],
+                    dim=1,
+                    keepdim=True
+                )
             kernel_out.append(cur_frame)
         kernel_out = torch.cat(kernel_out, dim=1)
         return kernel_out
-
-
-if __name__ == '__main__':
-    B, T, D = 32, 300, 440
-    xx = torch.randn(B, T, D, requires_grad=True)
-    kernel = FSMNKernel(D, 5, 5, 1, 2)
-    out = kernel(xx)
-    print(kernel)
-    loss = out.mean()
-    loss.backward()
-    for name, param in kernel.named_parameters():
-        print(name, param, param.grad)
-
