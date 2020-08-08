@@ -5,8 +5,8 @@ import torch.nn as nn
 
 
 class Pad(enum.Enum):
-    ZERO = 'zero padding'
-    EDGE = 'edge padding'
+    ZERO = 'zero'
+    EDGE = 'edge'
 
 
 class FSMNKernel(nn.Module):
@@ -66,7 +66,7 @@ class FSMNKernelParallel(nn.Module):
     def __init__(self, dims, l_order, r_order, l_stride=1, r_stride=1, padding_mode=Pad.ZERO):
         super().__init__()
         assert l_stride == r_stride == 1, f'Parallel version expected l_stride == r_stride == 1, ' \
-                                          f'now get ({l_stride}, {r_stride})'
+                                          f'but get ({l_stride}, {r_stride})'
         self.filter = nn.Conv1d(in_channels=dims, out_channels=dims, kernel_size=l_order+r_order+1, stride=l_stride,
                                 groups=dims, padding=0, bias=False)
         self.l_order = l_order
@@ -74,12 +74,12 @@ class FSMNKernelParallel(nn.Module):
         self.l_stride = l_stride
         self.r_stride = r_stride
         self.dims = dims
-        self.pm = padding_mode
+        self.pm = Pad(padding_mode)
 
     def extra_repr(self) -> str:
-        return f'l_order={self.l_order}, r_order={self.r_order}, ' \
+        return f'(l_order={self.l_order}, r_order={self.r_order}, ' \
                f'l_stride={self.l_stride}, r_stride={self.r_stride}, ' \
-               f'dims={self.dims}, padding_mode={self.pm}'
+               f'dims={self.dims}, padding_mode={self.pm})'
 
     def forward(self, x):
         batch, time, dim = x.size()
@@ -103,6 +103,6 @@ class FSMNKernelParallel(nn.Module):
             )
         else:
             raise ValueError(f'padding mode {self.pm} is not supported for now.')
-        x = x.transpose(1, 2).contiguous()
-        y = self.filter(x)
+        x = x.transpose(1, 2).contiguous()  # BxTxD -> BxDxT for conv accept channel as second dimension.
+        y = self.filter(x).transpose(1, 2).contiguous()  # BxDxT -> BxTxD
         return y
