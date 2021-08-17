@@ -17,34 +17,38 @@ class Net(nn.Module):
 
 def test():
     import time
-    lo, ro = 2, 2
-    B, T, D = 10, 100, 30
-    num_iter = 1000
+    lo, ro = 10, 10
+    B, T, D = 10, 2000, 440
+    num_iter = 10
     x = torch.arange(B*T*D).view(B, T, D).float()
 
     fsmnp = FSMNKernelParallel(D, lo, ro, padding_mode='zero')
     fsmnp.filter.weight.data = torch.arange(fsmnp.filter.weight.numel()).view(fsmnp.filter.weight.size()).float()
-    print('fsmnp filter:', fsmnp.filter.weight.data)
+    fsmnp.filter.weight.data /= torch.max(fsmnp.filter.weight.data)
+
     s = time.time()
+    fsmnp_out = x
     for _ in range(num_iter):
-        fsmnp_out = fsmnp(x)
+        fsmnp_out = fsmnp(fsmnp_out)
     fsmnp_time = time.time() - s
 
     fsmn = FSMNKernel(dims=D, l_order=lo, r_order=ro, l_stride=1, r_stride=1)
     fsmn.filter.data = nn.Parameter(torch.arange(fsmnp.filter.weight.numel()).view(D, lo+ro+1).transpose(0, 1).float())
-    print('fsmn filter:', fsmn.filter.data)
+    fsmn.filter.data /= torch.max(fsmn.filter.data)
+
     s = time.time()
+    fsmn_out = x
     for _ in range(num_iter):
-        fsmn_out = fsmn(x)
+        fsmn_out = fsmn(fsmn_out)
     fsmn_time = time.time() - s
+    print('#' * 80)
+    print(f'maximum relative error: max(abs((fsmnp_out - fsmn_out)/ fsmnp_out)) ='
+          f' {torch.max((torch.abs(fsmnp_out - fsmn_out) / (fsmnp_out + 1e-8))):.8f}')
 
-    print('#' * 40)
-    print(f'diff: sum(fsmnp_out - fsmn_out) = {torch.sum(fsmnp_out - fsmn_out)}')
-
-    print('#' * 40)
-    print(f'parallel time used: {fsmnp_time}\n'
-          f'for-loop time used: {fsmn_time}')
-    print('#' * 40)
+    print('#' * 80)
+    print(f'parallel fsmn kernel time used: {fsmnp_time:.8f}\n'
+          f'for-loop fsmn kernel time used: {fsmn_time:.8f}')
+    print('#' * 80)
 
 
 if __name__ == '__main__':

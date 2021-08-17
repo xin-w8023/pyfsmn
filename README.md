@@ -2,11 +2,11 @@
 FSMN implementation with PyTorch
 
 ## Add FSMNKernelParallel version with group convolution to speed up fsmn computation.
-```python
-########################################
-# diff: sum(fsmnp_out - fsmn_out) = 0.0
-########################################
-# parallel time used: 0.26619601249694824
-# for-loop time used: 6.988285303115845
-########################################
+```plain
+################################################################################
+maximum relative error: max(abs((fsmnp_out - fsmn_out)/ fsmnp_out)) = 0.00000056
+################################################################################
+parallel fsmn kernel time used: 0.66744542
+for-loop fsmn kernel time used: 4.57218981
+################################################################################
 ```
